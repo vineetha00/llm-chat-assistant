@@ -1,36 +1,41 @@
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+import faiss
 import numpy as np
 import pickle
-import os
-from sentence_transformers import SentenceTransformer
-from transformers import pipeline
+
+# Load model and tokenizer
+model_name = "google/flan-t5-base"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
 # Load FAISS index and chunks
-index_path = "faiss_index/index.pkl"
-chunks_path = "faiss_index/chunks.pkl"
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-with open(chunks_path, "rb") as f:
+index = faiss.read_index("faiss_index/faiss.index")
+with open("faiss_index/chunks.pkl", "rb") as f:
     chunks = pickle.load(f)
 
-with open(index_path, "rb") as f:
-    index = pickle.load(f)
+# Preprocess question
+def embed_question(question):
+    inputs = tokenizer(question, return_tensors="pt", truncation=True)
+    with torch.no_grad():
+        outputs = model.encoder(**inputs)
+    return outputs.last_hidden_state.mean(dim=1).numpy().astype("float32")
 
-def get_top_k_chunks(question, k=3, score_threshold=0.2):
-    question_embedding = model.encode([question])[0]
-    D, I = index.search(np.array([question_embedding]), k)
-    top_chunks = []
-    for i, score in zip(I[0], D[0]):
-        if score > score_threshold and i != -1:
-            chunk = chunks[i].strip()
-            if len(chunk) > 100:
-                top_chunks.append(chunk[:300])  # truncate long chunks
-    return top_chunks
+# Retrieve top-k chunks
+def get_top_k_chunks(question, k=3):
+    if not question.strip():
+        return []
+    query_vector = embed_question(question)
+    D, I = index.search(query_vector, k)
+    return [chunks[i] for i in I[0] if i < len(chunks)]
 
+# Build prompt from context
 def build_prompt(question, top_chunks):
     context = "\n".join(top_chunks)
-    return f"Answer the question based on the context below:\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"
+    prompt = f"Context: {context}\n\nQuestion: {question}\nAnswer:"
+    return prompt
 
-def get_answer(prompt, model_name="flan-t5-base"):
-    pipe = pipeline("text2text-generation", model=model_name)
-    result = pipe(prompt, max_new_tokens=256)
-    return result[0]["generated_text"]
+# Generate answer
+def get_answer(prompt):
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    outputs = model.generate(**inputs, max_new_tokens=100)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)

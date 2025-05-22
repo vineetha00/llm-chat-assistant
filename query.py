@@ -1,3 +1,4 @@
+import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 import faiss
 import numpy as np
@@ -39,3 +40,4 @@ def get_answer(prompt):
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
     outputs = model.generate(**inputs, max_new_tokens=100)
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
+

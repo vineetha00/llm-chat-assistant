@@ -1,7 +1,7 @@
 import faiss
 import pickle
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 # Load tokenizer and model
 tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
@@ -35,8 +35,13 @@ def build_prompt(question, top_chunks):
     context = "\n\n".join(top_chunks)
     return f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
 
-def get_answer(prompt):
-    """Use flan-t5-base to generate an answer given a prompt."""
-    input_ids = tokenizer(prompt, return_tensors="pt", truncation=True).input_ids
-    outputs = model.generate(input_ids, max_length=100)
+def get_answer(prompt, model_name="flan-t5-base"):
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
+    outputs = model.generate(**inputs, max_new_tokens=256)
+
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
+

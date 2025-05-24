@@ -4,3 +4,4 @@ whisper_env/
 .DS_Store
 *.pyc
 local_model/
+local_model/

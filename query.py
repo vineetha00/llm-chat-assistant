@@ -1,4 +1,4 @@
-iimport faiss
+import faiss
 import pickle
 import torch
 import numpy as np

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-# Load tokenizer and model
+# Use a smaller, Streamlit-compatible model
 model_name = "google/flan-t5-small"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
@@ -27,7 +27,7 @@ def get_top_k_chunks(question, k=3):
     try:
         question_embedding = embed_question(question)
         distances, indices = index.search(question_embedding.reshape(1, -1), k)
-        return [chunks[i] for i in indices[0]]
+        return [chunks[i] for i in indices[0] if i < len(chunks)]
     except Exception as e:
         print(f"Error in get_top_k_chunks: {e}")
         return []
@@ -37,8 +37,8 @@ def build_prompt(question, top_chunks):
     context = "\n\n".join(top_chunks)
     return f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
 
-def get_answer(prompt, model_name="google/flan-t5-base"):
-    """Use flan-t5-base to generate an answer given a prompt."""
+def get_answer(prompt, model_name="google/flan-t5-small"):
+    """Use flan-t5-small to generate an answer given a prompt."""
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 

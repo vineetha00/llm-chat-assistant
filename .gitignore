@@ -3,3 +3,4 @@ __pycache__/
 whisper_env/
 .DS_Store
 *.pyc
+local_model/
